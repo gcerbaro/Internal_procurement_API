@@ -1,0 +1,3 @@
+from .auth_routes import register_auth_routes
+from .product_routes import register_product_routes
+from .sale_routes import register_sale_routes

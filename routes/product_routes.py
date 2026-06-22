@@ -7,11 +7,16 @@ from middleware import require_jwt, require_role
 from utils import sanitize_str, sanitize_positive_int, sanitize_positive_float, validate_no_sql_metacharacters
 
 products_tag = Tag(name="products", description="Gestão de produtos")
+
+class ProductPath(BaseModel):
+    id: int = Field(..., json_schema_extra={"example": 1})
+
+
 class ProductBody(BaseModel):
-    name:        str   = Field(...,  example="Notebook")
-    description: str   = Field("",  example="Intel i7, 16GB RAM")
-    price:       float = Field(...,  example=3499.90)
-    stock:       int   = Field(...,  example=10)
+    name:        str   = Field(...,  json_schema_extra={"example":"Notebook"})
+    description: str   = Field("",  json_schema_extra={"example":"Intel i7, 16GB RAM"})
+    price:       float = Field(...,  json_schema_extra={"example":3499.90})
+    stock:       int   = Field(...,  json_schema_extra={"example":10})
 
 
 def register_product_routes(app, limiter) -> None:
@@ -48,15 +53,18 @@ def register_product_routes(app, limiter) -> None:
     @require_role(["admin"])
     def create_product(body: ProductBody):
         # validação e sanitização antes de qualquer query
-        name        = sanitize_str(body.name, "name")
-        description = sanitize_str(body.description or "", "description") if body.description else ""
-        price       = sanitize_positive_float(body.price, "price")
-        stock       = sanitize_positive_int(body.stock, "stock")
+        try:
+            name        = sanitize_str(body.name, "name")
+            description = sanitize_str(body.description or "", "description") if body.description else ""
+            price       = sanitize_positive_float(body.price, "price")
+            stock       = sanitize_positive_int(body.stock, "stock")
 
-        # Rejeita metacaracteres SQL em campos de texto livre
-        validate_no_sql_metacharacters(name, "name")
-        if description:
-            validate_no_sql_metacharacters(description, "description")
+            # Rejeita metacaracteres SQL em campos de texto livre
+            validate_no_sql_metacharacters(name, "name")
+            if description:
+                validate_no_sql_metacharacters(description, "description")
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
 
         now = datetime.now().isoformat()
         conn = get_db()
@@ -81,21 +89,24 @@ def register_product_routes(app, limiter) -> None:
     )
     @require_jwt
     @require_role(["admin"])
-    def update_product(path_id: int, body: ProductBody):
+    def update_product(path: ProductPath, body: ProductBody):
         # validação e sanitização
-        name        = sanitize_str(body.name, "name")
-        description = sanitize_str(body.description or "", "description") if body.description else ""
-        price       = sanitize_positive_float(body.price, "price")
-        stock       = sanitize_positive_int(body.stock, "stock")
+        try:
+            name        = sanitize_str(body.name, "name")
+            description = sanitize_str(body.description or "", "description") if body.description else ""
+            price       = sanitize_positive_float(body.price, "price")
+            stock       = sanitize_positive_int(body.stock, "stock")
 
-        validate_no_sql_metacharacters(name, "name")
-        if description:
-            validate_no_sql_metacharacters(description, "description")
+            validate_no_sql_metacharacters(name, "name")
+            if description:
+                validate_no_sql_metacharacters(description, "description")
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
 
         now = datetime.now().isoformat()
         conn = get_db()
         if not conn.execute(
-            "SELECT id FROM products WHERE id = ?", (path_id,)
+            "SELECT id FROM products WHERE id = ?", (path.id,)
         ).fetchone():
             conn.close()
             return jsonify({"error": "Produto não encontrado"}), 404
@@ -104,7 +115,7 @@ def register_product_routes(app, limiter) -> None:
             "UPDATE products "
             "SET name = ?, description = ?, price = ?, stock = ?, updated = ? "
             "WHERE id = ?",
-            (name, description, price, stock, now, path_id),
+            (name, description, price, stock, now, path.id),
         )
         conn.commit()
         conn.close()
@@ -119,18 +130,18 @@ def register_product_routes(app, limiter) -> None:
         )
     @require_jwt
     @require_role(["admin"])
-    def delete_product(path_id: int):
+    def delete_product(path: ProductPath):
         conn = get_db()
 
         # Verifica existência
         if not conn.execute(
-            "SELECT id FROM products WHERE id = ?", (path_id,)
+            "SELECT id FROM products WHERE id = ?", (path.id,)
         ).fetchone():
             conn.close()
             return jsonify({"error": "Produto não encontrado"}), 404
 
         conn.execute(
-            "DELETE FROM products WHERE id = ?", (path_id,)
+            "DELETE FROM products WHERE id = ?", (path.id,)
         )
         conn.commit()
         conn.close()

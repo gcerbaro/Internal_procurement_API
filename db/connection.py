@@ -3,7 +3,6 @@ import sqlite3
 import bcrypt
 from config import DB_PATH
 
-
 def get_db() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row

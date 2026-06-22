@@ -7,8 +7,8 @@ from db import get_db
 
 auth_tag = Tag(name="auth", description="Autenticação")
 class LoginBody(BaseModel):
-    username: str = Field(..., example="usuario")
-    password: str = Field(..., example="senha")
+    username: str = Field(..., json_schema_extra={"example": "usuario"})
+    password: str = Field(..., json_schema_extra={"example": "senha"})
 
 def register_auth_routes(app, limiter) -> None:
     @app.post(

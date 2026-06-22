@@ -1,0 +1,5 @@
+[run]
+omit = tests/*, app.py, app_factory.py
+
+[report]
+show_missing = True

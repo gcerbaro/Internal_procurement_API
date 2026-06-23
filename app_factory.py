@@ -1,6 +1,7 @@
 # app_factory.py
 import os
-from flask import jsonify
+from urllib import request
+from flask import jsonify, request
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_openapi3 import OpenAPI, Info, SecurityScheme
@@ -56,6 +57,11 @@ def create_app(testing=False):
     app.config["RATELIMIT_STORAGE_URI"] = "memory://"
     limiter = Limiter(get_remote_address, app=app, default_limits=["50 per minute"])
 
+    @app.before_request
+    def handle_options():
+        if request.method == "OPTIONS":
+            return "", 204
+
     # Middleware global VPN check
     if not testing:
      app.before_request(check_vpn)
@@ -73,15 +79,14 @@ def create_app(testing=False):
     def validation_error(e):
         return jsonify({"error": "Dados inválidos na requisição", "detail": str(e)}), 422
 
+    from flask_cors import CORS
+
     CORS(
         app,
-        resources={
-            r"/*": {
-                "origins": [
-                    "http://localhost:3000"
-                ]
-            }
-        }
+        resources={r"/*": {"origins": "http://localhost:3000"}},
+        allow_headers=["Content-Type", "Authorization"],
+        expose_headers=["Content-Type"],
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        supports_credentials=False
     )
-
     return app

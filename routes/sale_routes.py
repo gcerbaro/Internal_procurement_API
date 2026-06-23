@@ -4,7 +4,7 @@ from flask_openapi3 import Tag
 from pydantic import BaseModel, Field
 from db import get_db
 from middleware import require_jwt, require_role
-from utils import sanitize_positive_int
+from utils import sanitize_positive_int, sanitize_str,validate_no_sql_metacharacters
 
 sales_tag = Tag(name="sales", description="Vendas")
 class SalePath(BaseModel):
@@ -80,8 +80,8 @@ def register_sale_routes(app, limiter) -> None:
     def update_sale(path: SalePath, body: SaleBody):
         # validação e sanitização
         try:
-            quantity = sanitize_str(body.quantity, "quantity")
-            validate_no_sql_metacharacters(quantity, "quantity")
+            quantity = sanitize_positive_int(body.quantity, "quantity")
+            #validate_no_sql_metacharacters(quantity, "quantity")
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
 
@@ -94,10 +94,8 @@ def register_sale_routes(app, limiter) -> None:
             return jsonify({"error": "Venda não encontrada"}), 404
 
         conn.execute(
-            "UPDATE sales "
-            "SET quantity = ?, updated = ? "
-            "WHERE id = ?",
-            (quantity, now, path.id),
+            "UPDATE sales SET quantity = ? WHERE id = ?",
+            (quantity, path.id),
         )
         conn.commit()
         conn.close()

@@ -21,7 +21,7 @@ def register_auth_routes(app, limiter) -> None:
             "para autenticar as demais rotas."
         ),
     )
-    @limiter.limit("5 per minute")
+    @limiter.limit("50 per minute")
     def login(body: LoginBody):
         conn = get_db()
         c = conn.cursor()
